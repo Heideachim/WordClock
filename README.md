@@ -3,4 +3,4 @@ WordClock
 =========
 
 A clock using words.
-By Marting and Achim.
+By Martin and Achim.
