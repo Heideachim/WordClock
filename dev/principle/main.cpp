@@ -5,11 +5,11 @@ using namespace std;
 
 int main()
 {
-    cout << "Hallo WortUhr!" << endl;
+    cout << "Hallo Wort-Uhr!" << endl;
 
     string fuenf = "fünf ";
     string zehn = "zehn ";
-    string viertel = "viertel ";
+    string viertel = "Viertel ";
     string zwanzig = "zwanzig ";
     string no = "";
     string vor = "vor ";
@@ -23,22 +23,34 @@ int main()
     string halbe[] =   {       no,     no,     no,     no,      no,      halb,   halb,   halb,   no,      no,      no,     no};
     // string uhren[] =   {       uhr,    "",     "",     "",      "",      "",     "",     "",     "",      "",      uhr,    uhr};
     int richtung[] =   {       0,      0,      0,      0,       0,       1,      1,      1,      1,       1,       1,      1};
-    string stunden[] = {"ein", "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn", "elf", "zwölf"};
+    string stunden[] = {"", "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn", "elf", "zwölf", "eins"};  // ein zusätzlicher Eintrag, weil auch 12+1 abgefragt wird
+    string stunden_ein = "ein";     // Sonderfall 'ein Uhr' (nicht 'eins Uhr')
 
-    for (int h = 1; h < 3; h++) {
-        for (int m = 0; m < 60; m += 5) {
-            int i = m/5;
+    for (int H = 23; H < 24; H++) {
+        for (int M = 50; M < 60; M += 1) {
+            int h = H;
+            int m = (M+2)/5;                // Minuten auf Fünfminuten runden: 0, 1, 2 --> 0; 3, 4, 5 --> 5; etc. 
+            if (M >= 58) {                   // Sonderfall: alles 2 Minuten vor einer ganzen Fünfminutenzahl wird auf diese aufgerundet, führt beo 58+59 zu einem Stunden-Überlauf!
+                m = 0;
+                h = H + 1;
+            }
+
+            while (h >= 13)                 // Nachmittags-Zeiten auf vormittags mappen
+                h -= 12;           
+            if (h == 0)                     // Sonderfall: Mitternacht wird als zwölf Uhr vereinfacht            
+                h = 12;
+
             string s;
-            s += fuenfer[i];
-            s += wohin[i];
-            s += halbe[i];
-            if ((h == 1) && (i == 0))
-                s += stunden[0];        // sonderfall: 'ein Uhr' statt 'eins Uhr'
+            s += fuenfer[m];
+            s += wohin[m];
+            s += halbe[m];
+            if ((h == 1) && (m == 0))
+                s += stunden_ein;        // Sonderfall: 'ein Uhr' statt 'eins Uhr'
             else
-                s += stunden[h + richtung[i]];
-            if (i == 0)                 // nur bei vollen stunden wird 'Uhr' angehängt
+                s += stunden[h + richtung[m]];
+            if (m == 0)                  // nur bei vollen Stunden wird 'Uhr' angehängt
                 s += uhr;
-            cout << "Es ist " << s << "." << endl;
+            cout << (H < 10 ? "0" : "") << H << (M < 10 ? ":0" : ":") << M << " - " << s << "." << endl;
         }
     }
 
