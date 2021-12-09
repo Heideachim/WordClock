@@ -10,13 +10,13 @@ are already there, the appropriate ones will be highlichted.
 Unfortunately, this is highly dependant on the choosen language, here German. This not only
 affects the clock-face, that would be easy to change. But also the structure of text. 
 Here is an example in English: 
-1:00 is: "It is one o'clock"
-1:05 is: "It is five past one"
+- 1:00 is: "It is one o'clock"
+- 1:05 is: "It is five past one"
 That is pretty regular, the hour 1 is always displayed as "one".
 
 Compare this to German:
-1:00 is: "Es ist ein Uhr"
-1:05 is: "Es ist fünf nach eins"
+- 1:00 is: "Es ist ein Uhr"
+- 1:05 is: "Es ist fünf nach eins"
 Unfortunately, the hour 1 may get represented as "ein" or "eins". This needs to be handled in software and 
 marks a deviation from other languages. 
 Hence, we will continue in German, since that is the language this clock will serve time in.
@@ -29,8 +29,8 @@ of the Deutsche Welle, Germany's international broadcaster:
 
 ## Hardware 
 
-Frame: Ikea Ribba picture frame
-Reciever: DCF-77
-LEDs: WS2812 strip, 2m
+- Frame: Ikea Ribba picture frame
+- Reciever: DCF-77
+- LEDs: WS2812 strip, 2m
 
 
