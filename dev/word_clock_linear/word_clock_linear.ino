@@ -25,7 +25,7 @@ CRGB leds[NUM_LEDS];
 
 #define DCF_PIN 2           // Connection pin to DCF 77 device
 #define DCF_INTERRUPT 0    // Interrupt number associated with pin
-DCF77 DCF = DCF77(DCF_PIN, DCF_INTERRUPT);
+DCF77 DCF = DCF77(DCF_PIN, DCF_INTERRUPT, false);
 
 #define DEBUG_PIN 7       // green LED attached to pin 7
 
