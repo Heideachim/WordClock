@@ -3,12 +3,34 @@
     Ein WS2812B-Streifen ist an Pin D4 angeschlossen.
     An Pin D7 ist eine grüne LED zum Debuggen.
     Pin D2 ist der Digital-Eingang vom DCF77.
+    
     Die Fastled-Bibliothek sperrt Interrupts, um das seriellen Protokoll
     zeitlich präzise zu erzeugen. Das stört aber die zeitbasierte Erkennung
     der DCF77-Bibliothek. Deshalb wird bis zum ersten Empfang eines gültigen
-    Zeitsignales gar keine LEDs aktualisiert, und dannach nur, wenn eine Hi->Low-Flanke
+    Zeitsignales gar keine LEDs aktualisiert und dannach nur, wenn eine Hi->Low-Flanke
     erkannt wurde. Dies sollte der unkritischste Zeitpunkt für eine Interrupt-Sperre
-    sein.    */
+    sein.   
+    Die Anzeige wird nur jede Sekunde aktualisiert, um die Rechenzeit für die DCF77-Bibliothek
+    zur Verfügung zu haben. Deshalb wird auch erst NACH einem fallenden Pegel die Uhrzeit
+    ausgegeben, weil dann die DCF77-Routine erfolgreich abgeschlossen wurde.
+    Wenn gar kein DCF77 empfangen wird, liegt ein konstanter Pegel am DCF77-Siganl an und
+    es darf nicht auf den Flankenwechsel gewartet werden, sondern es muss nach einem Timeout
+    die Zeit ausgegeben werden.
+    
+    Fehlersuche fehlende Synchronisation:
+    Das Antennen-Ausgangs-Signal ist gelegentlich gestört, wodurch sich die Uhr nicht synchronisieren kann.
+    Rot scheint nicht zu stören, Grün und vor allem Blau deutlich.
+    Mit hue16 = 25209 gibt es sehr starke Störungen. Aber nur bei 0.00! Ist es 0.05 Uhr, geht es sehr gut.
+    Die Störungen des dcf77 sind nicht korrelliert mit dem Ausgabesignal an die LEDs.
+    Mit einem handy-netzteil scheint es besser zu sein als mit dem USBdes PCs.
+    Verbesserungs-Test: Pro Streifen 2 mal 10µF eingelötet (also 120µF gesamt): Bringt keine merkliche Verbesserung
+    Alle LEDs an mit der Farbe für hue=25209=grün (und zufälligerweise auch für farbe = 25209 = türkis) führt zu extremen Störungen.
+    Sind die drei untersten Reihen auf der Farbe=25209, stört das überhaupt nicht, die vier untersten Reihen stören ganz leicht.
+    Ist nur die oberste Reihe an, ist er teilweise extrem gestört!
+    Ursache: Der obere LED-Streifen ist parallel und nahe bei der Antenne. De er in der Mitte eingespeist wird, fließt ein 
+    hoher Strom an der Antenne vorbei und stört diese massiv. Je nach angezeigter Farbe sind die Stromrippel sehr unterschiedliche.
+    Grundsätzlich zu sehen sind sehr hohe, sehr kurze Spitzen mit 20µs = 50kHz, unterlagert von einer niederfrequenten Welligkeit mit 1,1ms = 900Hz.
+    */
 
 #include <DCF77.h>    // DCF77 by Thijs Elenbaas, V1.0.0        https://github.com/thijse/Arduino-Libraries/downloads
                       //                                        https://github.com/thijse/Arduino-DCF77                                                                
@@ -49,7 +71,7 @@ void setup() {
 
   // initialize dcf77:
   DCF.Start();
-  Serial.println("\n\nDCF77 benötigt über zwei Minuten, um sich zu synchronisieren.");
+  Serial.println("\n\nDCF77 benötigt über zwei Minuten, um sich zu synchronisieren!");
 }
 
 // =================================================================================================
@@ -58,11 +80,10 @@ void loop()
   static time_t previous_display = 0;          // when the digital clock was displayed
   static bool previous_pinstate = 0;
   bool current_pinstate = digitalRead(DCF_PIN);
-  
-  digitalWrite(DEBUG_PIN, current_pinstate);
+  digitalWrite(DEBUG_PIN, current_pinstate);    // mirror the DCF77 line's state to a debug LED
 
-  if (current_pinstate == 1)
-    previous_pinstate = 1;
+  if (current_pinstate == 0)
+    previous_pinstate = 0;
 
   time_t dcf_time = DCF.getTime(); // Check if new DCF77 time is available
   if (dcf_time != 0)
@@ -70,15 +91,25 @@ void loop()
     Serial.println("Synchronisiert");
     setTime(dcf_time);
   }
-    
-  // update the display only if the time has changed AND the DCF77 signal was going from HI to LO:
-  if ((now() != previous_display) && (previous_pinstate == 1) && (current_pinstate == 0)) 
+
+  // If there is no dcf77 Signal, the display routine gets never called, thus use a timeout to 
+  // at least update the display every two seconds (1 sec = 51000 watchdog counts)
+  static long watchdog;
+  watchdog++;
+
+  // update the display only if the time has changed AND the DCF77 signal was going from HI to LO OR if the watchdog has timed out:
+  if ((now() != previous_display) && ((previous_pinstate == 0) && (current_pinstate == 1) || (watchdog > 90000L))) 
   {
-    previous_display = now();
-    time_write_serial();  
-    if (timeStatus()== timeSet)                          // only update led strip if time is synced
+    {
+      previous_display = now();
+      time_write_serial();  
+      DCF.Stop();
       led_display(hour(), minute(), second());  
-    previous_pinstate = 0;
+      delay(7);
+      DCF.Start();
+      previous_pinstate = 1;
+      watchdog = 0;   // reset watchdog counter
+    }
   }
 }
 
@@ -100,13 +131,18 @@ enum Zahlen stunden_ein = ein;     // Sonderfall 'ein Uhr' (nicht 'eins Uhr')
 void setled(int index, CRGB color)
 {
   if (index < sizeof(zahlen_pos)) {
-    fill_solid(leds + zahlen_pos[index], zahlen_len[index], color);
+    int start = zahlen_pos[index];
+    int len = zahlen_len[index];
+    if (start < NUM_LEDS) {
+      if (start + len < NUM_LEDS)
+        fill_solid(leds + zahlen_pos[index], zahlen_len[index], color);
+    }
   }
 }
 
 void led_display(int H, int M, int S) {
   int i;
-  fill_solid(leds, NUM_LEDS, CRGB(0, 0, 1));
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
 
   int h = H;
   int m = (M+2)/5;                // Minuten auf Fünfminuten runden: 0, 1, 2 --> 0; 3, 4, 5 --> 5; etc. 
@@ -120,9 +156,9 @@ void led_display(int H, int M, int S) {
   if (h == 0)                     // Sonderfall: Mitternacht wird als zwölf Uhr vereinfacht            
       h = 12;
 
-  uint16_t hue16 = beat88(512);  // Sägezahn für die Farbe; 256 = 1bpm = 60s Periode; 2560 = 10bpm = 6s Periode
+  uint16_t hue16 = beat88(256);  // Sägezahn für die Farbe; 256 = 1bpm = 60s Periode; 2560 = 10bpm = 6s Periode
   CRGB farbe = CHSV( hue16 / 256, 255, 255);
-
+  
   setled(esist, farbe);
   setled(fuenfer[m], farbe);
   setled(wohin[m], farbe);
