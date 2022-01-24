@@ -41,7 +41,7 @@
 #define LED_DATA_PIN    4
 #define LED_TYPE    WS2811
 #define COLOR_ORDER GRB
-#define NUM_LEDS   96 //  60 LED/m
+#define NUM_LEDS   96 //  60 LED/m, 6 lines á 16 LEDs
 #define BRIGHTNESS  255
 CRGB leds[NUM_LEDS];
 
@@ -80,7 +80,7 @@ void loop()
   static time_t previous_display = 0;          // when the digital clock was displayed
   static bool previous_pinstate = 0;
   bool current_pinstate = digitalRead(DCF_PIN);
-  digitalWrite(DEBUG_PIN, current_pinstate);    // mirror the DCF77 line's state to a debug LED
+  digitalWrite(DEBUG_PIN, 1-current_pinstate);    // mirror the DCF77 line's state to a debug LED
 
   if (current_pinstate == 0)
     previous_pinstate = 0;
@@ -134,8 +134,8 @@ void setled(int index, CRGB color)
     int start = zahlen_pos[index];
     int len = zahlen_len[index];
     if (start < NUM_LEDS) {
-      if (start + len < NUM_LEDS)
-        fill_solid(leds + zahlen_pos[index], zahlen_len[index], color);
+      if (start + len <= NUM_LEDS)
+        fill_solid(leds + zahlen_pos[index], len, color);
     }
   }
 }
